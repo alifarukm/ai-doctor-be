@@ -1,22 +1,36 @@
 {
-  "name": "ai-gateway",
-  "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "generate-schemas": "bun prisma generate --schema=lib/prisma/schema.prisma && prisma format --schema=lib/prisma/schema.prisma",
-    "db-sync": "npx prisma db push"
-  },
-  "dependencies": {
-    "@prisma/adapter-d1": "^6.17.1",
-    "@prisma/client": "^6.17.1",
-    "@prisma/extension-accelerate": "^2.0.2",
-    "hono": "^4.10.1"
-  },
-  "devDependencies": {
-    "@types/node": "^24.9.1",
-    "prisma": "^6.17.1",
-    "wrangler": "^4.4.0"
-  }
+	"name": "ai-gateway",
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy --minify",
+		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
+		"generate-schemas": "bun prisma generate --schema=lib/prisma/schema.prisma && prisma format --schema=lib/prisma/schema.prisma",
+		"db-sync": "npx prisma db push",
+		"db-sync:remote": "npx dotenv -e .env.remote -- prisma db push",
+		"db-sync:local": "npx dotenv -e .env.local -- prisma db push",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"lint": "biome lint --write .",
+		"lint:check": "biome lint .",
+		"check": "biome check --write ."
+	},
+	"dependencies": {
+		"@hono/zod-validator": "^0.7.4",
+		"@prisma/adapter-d1": "^6.17.1",
+		"@prisma/client": "^6.17.1",
+		"@prisma/extension-accelerate": "^2.0.2",
+		"hono": "^4.10.1",
+		"pino": "^10.1.0",
+		"pino-pretty": "^13.1.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.2",
+		"@types/node": "^24.9.1",
+		"@types/pino": "^7.0.5",
+		"dotenv-cli": "^11.0.0",
+		"prisma": "^6.17.1",
+		"typescript": "^5.9.3",
+		"wrangler": "^4.4.0"
+	}
 }

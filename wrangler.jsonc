@@ -1,38 +1,38 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ai-doctor-be",
-  "main": "src/index.ts",
-  "compatibility_date": "2025-10-19",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "tr-ai-doctor-db",
-      "database_id": ""
-    }
-  ],
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ai-doctor-be",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-10-19",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "tr-ai-doctor-db",
+			"database_id": "f2b1f2b2-6749-4b13-a528-a4f9f385f62a"
+		}
+	]
+	// "compatibility_flags": [
+	//   "nodejs_compat"
+	// ],
+	// "vars": {
+	//   "MY_VAR": "my-variable"
+	// },
+	// "kv_namespaces": [
+	//   {
+	//     "binding": "MY_KV_NAMESPACE",
+	//     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+	//   }
+	// ],
+	// "r2_buckets": [
+	//   {
+	//     "binding": "MY_BUCKET",
+	//     "bucket_name": "my-bucket"
+	//   }
+	// ],
+	// "ai": {
+	//   "binding": "AI"
+	// },
+	// "observability": {
+	//   "enabled": true,
+	//   "head_sampling_rate": 1
+	// }
 }
