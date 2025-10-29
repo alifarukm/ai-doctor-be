@@ -1,13 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ai-gateway",
+  "name": "ai-doctor-be",
   "main": "src/index.ts",
   "compatibility_date": "2025-10-19",
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "ai-gateway",
-      "database_id": "b36aef3d-6247-49e0-a010-a9eab6b80879"
+      "database_name": "tr-ai-doctor-db",
+      "database_id": ""
     }
   ],
   // "compatibility_flags": [
