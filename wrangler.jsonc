@@ -9,13 +9,29 @@
 			"database_name": "tr-ai-doctor-db",
 			"database_id": "f2b1f2b2-6749-4b13-a528-a4f9f385f62a"
 		}
-	]
+	],
+	// Cloudflare AI for embeddings and NLP
+	"ai": {
+		"binding": "AI"
+	},
+	// Vectorize for semantic search
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "medical-entities-index"
+		}
+	],
+	// Environment variables
+	"vars": {
+		"EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5",
+		"NLP_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+		"EMBEDDING_DIMENSIONS": "768",
+		"VECTOR_SEARCH_LIMIT": "10",
+		"VECTOR_SEARCH_THRESHOLD": "0.5"
+	}
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
-	// "vars": {
-	//   "MY_VAR": "my-variable"
-	// },
 	// "kv_namespaces": [
 	//   {
 	//     "binding": "MY_KV_NAMESPACE",
@@ -28,9 +44,6 @@
 	//     "bucket_name": "my-bucket"
 	//   }
 	// ],
-	// "ai": {
-	//   "binding": "AI"
-	// },
 	// "observability": {
 	//   "enabled": true,
 	//   "head_sampling_rate": 1
