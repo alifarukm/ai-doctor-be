@@ -20,10 +20,10 @@ enum PatientType {
 }
 
 model users {
-  id        String   @id @default(uuid())
-  
-  email     String   @unique
-  name      String?
+  id String @id @default(uuid())
+
+  email String  @unique
+  name  String?
 
   // Hasta bilgileri (opsiyonel)
   age    Int?
@@ -46,10 +46,10 @@ model disease_categories {
 
 model diseases {
   id Int @id @default(autoincrement())
-  
+
   name        String             @unique // "Tonsillit", "Farenjit" vb.
   description String? // Hastalık açıklaması
-  category_id String
+  category_id Int
   category    disease_categories @relation(fields: [category_id], references: [id])
   vectorId    String?            @unique // Vectorize'daki embedding ID
 
@@ -80,8 +80,8 @@ model symptoms {
 model disease_symptoms {
   id Int @id @default(autoincrement())
 
-  disease_id String
-  symptom_id String
+  disease_id Int
+  symptom_id Int
   disease    diseases @relation(fields: [disease_id], references: [id], onDelete: Cascade)
   symptom    symptoms @relation(fields: [symptom_id], references: [id], onDelete: Cascade)
 
@@ -99,7 +99,7 @@ model disease_symptoms {
 model diagnosis_criterions {
   id Int @id @default(autoincrement())
 
-  disease_id String
+  disease_id Int
   disease    diseases @relation(fields: [disease_id], references: [id], onDelete: Cascade)
 
   criteria String // "Ani başlangıç, ateş, şiddetli boğaz ağrısı"
@@ -112,7 +112,7 @@ model diagnosis_criterions {
 // İlaçlar (Active Ingredients)
 model medications {
   id Int @id @default(autoincrement())
-  
+
   generic_name      String  @unique // "Amoksisilin-Klavulanik asit"
   description       String?
   type              String // "antibiyotik", "analjezik", "antihistaminik", "dekonjestan" vb.
@@ -131,7 +131,7 @@ model medications_brand_names {
   id Int @id @default(autoincrement())
 
   name          String      @unique // "KLAVUNAT", "AUGMENTIN" vb.
-  medication_id String
+  medication_id Int
   medication    medications @relation(fields: [medication_id], references: [id], onDelete: Cascade)
 
   @@index([medication_id])
@@ -142,7 +142,7 @@ model medications_brand_names {
 model medications_treatments {
   id Int @id @default(autoincrement())
 
-  disease_id String
+  disease_id Int
   disease    diseases @relation(fields: [disease_id], references: [id], onDelete: Cascade)
 
   type        String // "antibiyotik", "semptomatik", "destekleyici", "ses_istirahati"
@@ -162,9 +162,9 @@ model medications_treatments {
 model medications_dosages {
   id Int @id @default(autoincrement())
 
-  treatment_id  String
+  treatment_id  Int
   treatment     medications_treatments @relation(fields: [treatment_id], references: [id], onDelete: Cascade)
-  medication_id String
+  medication_id Int
   medication    medications            @relation(fields: [medication_id], references: [id], onDelete: Cascade)
 
   // Hasta tipi ve yaş aralığı
@@ -195,7 +195,7 @@ model medications_dosages {
 model supportive_care {
   id Int @id @default(autoincrement())
 
-  disease_id String?
+  disease_id Int?
   disease    diseases? @relation(fields: [disease_id], references: [id], onDelete: Cascade)
 
   category    String // "hidrasyon", "istirahat", "irrritanlardan_kacinma"
@@ -210,8 +210,8 @@ model supportive_care {
 model user_queries {
   id         String  @id @default(uuid())
   session_id String? // Opsiyonel session takibi
-  user_id   String?
-  
+  user_id    String?
+
   // Girilen semptomlar
   raw_symptoms String // Kullanıcının girdiği metin
   vector_id    String? // Vectorize'daki query embedding ID
@@ -221,8 +221,8 @@ model user_queries {
   confidence         Float? // Genel güven skoru
 
   // İlişkiler
-  user      users?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  symptoms  query_symptoms[]
+  user     users?           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  symptoms query_symptoms[]
 
   created_at DateTime @default(now())
 
@@ -235,7 +235,7 @@ model query_symptoms {
   id         String       @id @default(uuid())
   query_id   String
   query      user_queries @relation(fields: [query_id], references: [id], onDelete: Cascade)
-  symptom_id String
+  symptom_id Int
   symptom    symptoms     @relation(fields: [symptom_id], references: [id], onDelete: Cascade)
 
   confidence Float @default(1.0) // 0-1 arası eşleşme güveni
