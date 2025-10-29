@@ -8,7 +8,7 @@ export default {
 	experimental: {
 		adapter: true,
 	},
-	schema: "src/lib/prisma/schema.prisma",
+	schema: "src/libs/prisma/schema.prisma",
 	async adapter() {
 		return new PrismaD1({
 			CLOUDFLARE_D1_TOKEN: process.env.CLOUDFLARE_D1_TOKEN!,

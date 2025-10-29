@@ -7,7 +7,8 @@
 		{
 			"binding": "DB",
 			"database_name": "tr-ai-doctor-db",
-			"database_id": "f2b1f2b2-6749-4b13-a528-a4f9f385f62a"
+			"database_id": "f2b1f2b2-6749-4b13-a528-a4f9f385f62a",
+			"remote": true
 		}
 	],
 	// Cloudflare AI for embeddings and NLP
@@ -18,7 +19,8 @@
 	"vectorize": [
 		{
 			"binding": "VECTORIZE",
-			"index_name": "medical-entities-index"
+			"index_name": "medical-entities-index",
+			"remote": true
 		}
 	],
 	// Environment variables

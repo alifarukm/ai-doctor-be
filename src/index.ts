@@ -26,6 +26,7 @@ app.get("/", (c) => {
 		endpoints: {
 			diagnose: "/api/diagnose",
 			embeddings: "/api/embeddings/generate",
+			diseases: "/api/diseases",
 		},
 	});
 });
