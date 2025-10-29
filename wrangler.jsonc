@@ -27,7 +27,13 @@
 		"NLP_MODEL": "@cf/meta/llama-3.1-8b-instruct",
 		"EMBEDDING_DIMENSIONS": "768",
 		"VECTOR_SEARCH_LIMIT": "10",
-		"VECTOR_SEARCH_THRESHOLD": "0.5"
+		"VECTOR_SEARCH_THRESHOLD": "0.5",
+		// LLM Configuration - Choose one: "openai", "gemini", or "anthropic"
+		"LLM_PROVIDER": "openai",
+		"LLM_API_KEY": "your-api-key-here",
+		"LLM_MODEL": "gpt-4-turbo-preview",
+		"LLM_TEMPERATURE": "0.7",
+		"LLM_MAX_TOKENS": "1000"
 	}
 	// "compatibility_flags": [
 	//   "nodejs_compat"

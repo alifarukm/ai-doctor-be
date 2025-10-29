@@ -10,6 +10,7 @@ import { logger } from "../utils/logger";
 import { NLPService } from "./nlp.service";
 import { SearchService } from "./search.service";
 import { DosageService } from "./dosage.service";
+import { LLMService } from "./llm.service";
 
 export class DiagnosisService {
 	constructor(
@@ -17,6 +18,7 @@ export class DiagnosisService {
 		private nlpService: NLPService,
 		private searchService: SearchService,
 		private dosageService: DosageService,
+		private llmService?: LLMService, // Optional for enhanced reasoning
 	) {}
 
 	/**
@@ -29,9 +31,10 @@ export class DiagnosisService {
 			logger.info({ message: request.message }, "Processing diagnosis");
 
 			// Step 1: Extract symptoms from natural language
-			const extractedSymptoms = await this.nlpService.extractSymptomsFromText(
-				request.message,
-			);
+			// Use LLM if available, fallback to basic NLP
+			const extractedSymptoms = this.llmService
+				? await this.llmService.extractSymptoms(request.message)
+				: await this.nlpService.extractSymptomsFromText(request.message);
 
 			logger.info(
 				{ symptoms: extractedSymptoms.extractedSymptoms },
@@ -136,7 +139,30 @@ export class DiagnosisService {
 				overallConfidence,
 			);
 
-			// Step 9: Build response
+			// Step 9: Generate LLM explanation and follow-up questions (if available)
+			let explanation: string | undefined;
+			let followUpQuestions: string[] | undefined;
+
+			if (this.llmService) {
+				try {
+					[explanation, followUpQuestions] = await Promise.all([
+						this.llmService.generateDiagnosisExplanation(
+							validatedSymptoms.map((s) => s.symptomName),
+							results,
+							request.patientInfo,
+						),
+						this.llmService.suggestFollowUpQuestions(
+							validatedSymptoms.map((s) => s.symptomName),
+							results,
+						),
+					]);
+				} catch (error) {
+					logger.warn({ error }, "Failed to generate LLM explanation");
+					// Continue without LLM enhancement
+				}
+			}
+
+			// Step 10: Build response
 			const response: DiagnosisResponse = {
 				extractedSymptoms: {
 					identified: validatedSymptoms.map((s) => s.symptomName),
@@ -146,6 +172,8 @@ export class DiagnosisService {
 				recommendations,
 				supportiveCare,
 				overallConfidence,
+				explanation,
+				followUpQuestions,
 				sessionId: request.sessionId || queryId,
 				timestamp: new Date().toISOString(),
 			};

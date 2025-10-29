@@ -17,15 +17,12 @@ export type CloudflareBindings = {
 	EMBEDDING_DIMENSIONS: string;
 	VECTOR_SEARCH_LIMIT: string;
 	VECTOR_SEARCH_THRESHOLD: string;
-};
-
-/**
- * Request context with bindings
- */
-export type RequestContext = {
-	Variables: {
-		bindings: CloudflareBindings;
-	};
+	// LLM Configuration
+	LLM_PROVIDER: string; // "openai" | "gemini" | "anthropic"
+	LLM_API_KEY: string;
+	LLM_MODEL: string;
+	LLM_TEMPERATURE?: string;
+	LLM_MAX_TOKENS?: string;
 };
 
 /**
@@ -40,23 +37,4 @@ export type ApiResponse<T = unknown> = {
 		details?: unknown;
 	};
 	timestamp: string;
-};
-
-/**
- * Pagination options for list endpoints
- */
-export type PaginationOptions = {
-	page?: number;
-	limit?: number;
-	offset?: number;
-};
-
-/**
- * Base service dependencies
- */
-export type ServiceDependencies = {
-	db: D1Database;
-	ai: Ai;
-	vectorize: Vectorize;
-	env: CloudflareBindings;
 };

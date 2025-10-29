@@ -1,12 +1,20 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { z } from "zod";
 import prismaClients from "../../lib/prisma/index";
 import { EmbeddingsService, VectorStoreService } from "../services";
 import type { CloudflareBindings } from "../types";
 import { logger } from "../utils/logger";
-import { BatchEmbeddingRequestSchema } from "../utils/validators";
 
 export const embeddingsRouter = new Hono<{ Bindings: CloudflareBindings }>();
+
+/**
+ * Batch embedding generation schema
+ */
+const BatchEmbeddingRequestSchema = z.object({
+	entityType: z.enum(["disease", "symptom", "treatment"]),
+	entityIds: z.array(z.number()).optional(),
+});
 
 /**
  * POST /generate - Generate embeddings for all entities

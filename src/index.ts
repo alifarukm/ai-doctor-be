@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
-import type { CloudflareBindings } from "./types";
-import { createAppRouters } from "./routers";
 import { errorHandler } from "./middleware";
+import appRouters from "./routers";
+import type { CloudflareBindings } from "./types";
 import { logger } from "./utils/logger";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
@@ -14,7 +14,7 @@ app.use("*", cors());
 app.use("*", errorHandler);
 
 // Mount application routers
-const routers = createAppRouters();
+const routers = appRouters();
 app.route("/", routers);
 
 // Root endpoint
@@ -24,7 +24,6 @@ app.get("/", (c) => {
 		version: "1.0.0",
 		status: "running",
 		endpoints: {
-			health: "/health",
 			diagnose: "/api/diagnose",
 			embeddings: "/api/embeddings/generate",
 		},

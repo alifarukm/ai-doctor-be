@@ -1,12 +1,12 @@
 import type { PrismaClient } from "../../lib/prisma-client";
 import type {
-	PatientInfo,
-	MedicationRecommendation,
 	DosageInfo,
+	MedicationRecommendation,
+	PatientInfo,
 } from "../types";
 import { DatabaseError } from "../utils/errors";
-import { logger } from "../utils/logger";
 import { formatDosage } from "../utils/helpers";
+import { logger } from "../utils/logger";
 
 export class DosageService {
 	constructor(private prisma: PrismaClient) {}
@@ -93,7 +93,7 @@ export class DosageService {
 					if (
 						dosage.allergy_info &&
 						patientInfo.allergies?.some((a) =>
-							dosage.allergy_info!.toLowerCase().includes(a.toLowerCase()),
+							dosage.allergy_info?.toLowerCase().includes(a.toLowerCase()),
 						)
 					) {
 						warnings.push(`Warning: ${dosage.allergy_info}`);

@@ -13,10 +13,11 @@ export type DiagnosisRequest = {
  * Extracted symptoms from natural language
  */
 export type ExtractedSymptoms = {
-	originalMessage: string;
+	originalMessage?: string;
 	extractedSymptoms: string[];
 	confidence: number;
 	unrecognizedTerms?: string[];
+	metadata?: unknown;
 };
 
 /**
@@ -97,6 +98,8 @@ export type DiagnosisResponse = {
 	recommendations: MedicationRecommendation[];
 	supportiveCare: SupportiveCareItem[];
 	overallConfidence: number;
+	explanation?: string; // LLM-generated explanation
+	followUpQuestions?: string[]; // Suggested follow-up questions
 	sessionId?: string;
 	timestamp: string;
 };
