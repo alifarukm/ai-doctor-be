@@ -1,8 +1,6 @@
-import type { PrismaClient } from "../../lib/prisma-client";
-import type { ExtractedSymptoms, MatchedSymptom } from "../types";
-import { NLPError } from "../utils/errors";
-import { logger } from "../utils/logger";
-import { normalizeText, similarityScore } from "../utils/helpers";
+import type { PrismaClient } from "@/libs/prisma-client";
+import type { ExtractedSymptoms, MatchedSymptom } from "@/types";
+import { logger, NLPError, normalizeText, similarityScore } from "@/utils";
 
 export class NLPService {
 	constructor(

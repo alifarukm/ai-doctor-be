@@ -17,12 +17,9 @@ export type CloudflareBindings = {
 	EMBEDDING_DIMENSIONS: string;
 	VECTOR_SEARCH_LIMIT: string;
 	VECTOR_SEARCH_THRESHOLD: string;
-	// LLM Configuration
-	LLM_PROVIDER: string; // "openai" | "gemini" | "anthropic"
-	LLM_API_KEY: string;
+
+	OPEN_ROUTER_API_KEY: string;
 	LLM_MODEL: string;
-	LLM_TEMPERATURE?: string;
-	LLM_MAX_TOKENS?: string;
 };
 
 /**

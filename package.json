@@ -5,7 +5,7 @@
 		"dev": "wrangler dev",
 		"deploy": "wrangler deploy --minify",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
-		"generate-schemas": "bun prisma generate --schema=lib/prisma/schema.prisma && prisma format --schema=lib/prisma/schema.prisma",
+		"generate-schemas": "bun prisma generate --schema=src/libs/prisma/schema.prisma && prisma format --schema=src/libs/prisma/schema.prisma",
 		"db-sync": "npx prisma db push",
 		"db-sync:remote": "npx dotenv -e .env.remote -- prisma db push",
 		"db-sync:local": "npx dotenv -e .env.local -- prisma db push",

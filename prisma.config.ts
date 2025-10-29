@@ -1,5 +1,5 @@
-import type { PrismaConfig } from "prisma";
 import { PrismaD1 } from "@prisma/adapter-d1";
+import type { PrismaConfig } from "prisma";
 
 // import your .env file
 import "dotenv/config";
@@ -8,7 +8,7 @@ export default {
 	experimental: {
 		adapter: true,
 	},
-	schema: "lib/prisma/schema.prisma",
+	schema: "src/lib/prisma/schema.prisma",
 	async adapter() {
 		return new PrismaD1({
 			CLOUDFLARE_D1_TOKEN: process.env.CLOUDFLARE_D1_TOKEN!,

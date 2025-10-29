@@ -1,3 +1,4 @@
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 /**
  * Base error class for the application
  */
@@ -5,7 +6,7 @@ export class AppError extends Error {
 	constructor(
 		message: string,
 		public readonly code: string,
-		public readonly statusCode: number = 500,
+		public readonly statusCode: ContentfulStatusCode = 500,
 		public readonly details?: unknown,
 	) {
 		super(message);
@@ -74,5 +75,14 @@ export class NotFoundError extends AppError {
 export class NLPError extends AppError {
 	constructor(message: string, details?: unknown) {
 		super(message, "NLP_ERROR", 500, details);
+	}
+}
+
+/**
+ * Service extraction error (500)
+ */
+export class ServiceError extends AppError {
+	constructor(message: string, details?: unknown) {
+		super(message, "SERVICE_ERROR", 500, details);
 	}
 }

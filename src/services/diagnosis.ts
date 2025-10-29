@@ -1,16 +1,15 @@
-import type { PrismaClient } from "../../lib/prisma-client";
+import type { PrismaClient } from "@/libs/prisma-client";
 import type {
 	DiagnosisRequest,
 	DiagnosisResponse,
 	DiagnosisResult,
 	SupportiveCareItem,
-} from "../types";
-import { DiagnosisError } from "../utils/errors";
-import { logger } from "../utils/logger";
-import { NLPService } from "./nlp.service";
-import { SearchService } from "./search.service";
-import { DosageService } from "./dosage.service";
-import { LLMService } from "./llm.service";
+} from "@/types";
+import { DiagnosisError, logger } from "@/utils";
+import type { DosageService } from "./dosage";
+import type { LLMService } from "./llm";
+import type { NLPService } from "./nlp";
+import type { SearchService } from "./search";
 
 export class DiagnosisService {
 	constructor(
@@ -225,7 +224,7 @@ export class DiagnosisService {
 	 */
 	private async storeDiagnosis(
 		request: DiagnosisRequest,
-		extractedSymptoms: string[],
+		_extractedSymptoms: string[],
 		validatedSymptoms: Array<{ symptomId: number; confidence: number }>,
 		results: DiagnosisResult[],
 		overallConfidence: number,

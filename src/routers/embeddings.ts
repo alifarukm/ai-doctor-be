@@ -1,10 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
-import prismaClients from "../../lib/prisma/index";
-import { EmbeddingsService, VectorStoreService } from "../services";
-import type { CloudflareBindings } from "../types";
-import { logger } from "../utils/logger";
+import prismaClients from "@/libs/prisma/index";
+import { EmbeddingsService, VectorStoreService } from "@/services";
+import type { CloudflareBindings } from "@/types";
+import { logger } from "@/utils/logger";
 
 export const embeddingsRouter = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -151,7 +151,7 @@ embeddingsRouter.post(
 				env.EMBEDDING_MODEL,
 			);
 
-			let result;
+			let result: { generated: number; failed: number };
 
 			if (request.entityType === "disease") {
 				result = await embeddingsService.generateEmbeddingsForDiseases();

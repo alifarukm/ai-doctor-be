@@ -1,8 +1,7 @@
 import type { Vectorize, VectorizeVector } from "@cloudflare/workers-types";
-import type { PrismaClient } from "../../lib/prisma-client";
-import type { VectorMetadata, VectorSearchResult } from "../types";
-import { VectorizeError } from "../utils/errors";
-import { logger } from "../utils/logger";
+import type { PrismaClient } from "@/libs/prisma-client";
+import type { VectorMetadata, VectorSearchResult } from "@/types";
+import { logger, VectorizeError } from "@/utils";
 
 export class VectorStoreService {
 	constructor(

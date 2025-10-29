@@ -1,22 +1,13 @@
-import type { PrismaClient } from "@prisma/client";
-import type {
-	ExtractedSymptoms,
-	DiagnosisResult,
-	PatientInfo,
-} from "../types/diagnosis";
-import { ServiceError } from "../utils/errors";
+import * as openRouter from "@/libs/openrouter/index";
+import type { PrismaClient } from "@/libs/prisma-client";
+import type { DiagnosisResult, ExtractedSymptoms, PatientInfo } from "@/types";
+import { logger, ServiceError } from "@/utils";
 
-/**
- * LLM Provider types
- */
-export type LLMProvider = "openai" | "gemini" | "anthropic" | "cloudflare";
+export type LLMModels = "z-ai/glm-4.5-air:free" | "openai/gpt-oss-20b:free";
 
 export type LLMConfig = {
-	provider: LLMProvider;
-	apiKey: string;
-	model: string;
-	temperature?: number;
-	maxTokens?: number;
+	openRouterApiKey: string;
+	model: LLMModels;
 };
 
 /**
@@ -96,10 +87,11 @@ Return ONLY a JSON object in this exact format:
 				},
 			};
 		} catch (error) {
+			logger.error({ error, message }, "LLM symptom extraction failed");
+
 			throw new ServiceError(
 				"LLM_EXTRACTION_ERROR",
 				"Failed to extract symptoms using LLM",
-				{ originalError: error },
 			);
 		}
 	}
@@ -117,7 +109,7 @@ Return ONLY a JSON object in this exact format:
 			.slice(0, 3)
 			.map(
 				(d) =>
-					`- ${d.disease.name} (${(d.confidence * 100).toFixed(1)}% confidence)`,
+					`- ${d.diseaseName} (${(d.confidence * 100).toFixed(1)}% confidence)`,
 			)
 			.join("\n");
 
@@ -145,9 +137,9 @@ Generate the explanation:`;
 		try {
 			const response = await this.callLLM(prompt);
 			return response.text.trim();
-		} catch (error) {
+		} catch (_error) {
 			// Fallback to simple explanation if LLM fails
-			return `Based on your symptoms (${symptomsText}), you may have ${diagnosisResults[0]?.disease.name}. Please consult a healthcare professional for proper diagnosis and treatment.`;
+			return `Based on your symptoms (${symptomsText}), you may have ${diagnosisResults[0]?.diseaseName}. Please consult a healthcare professional for proper diagnosis and treatment.`;
 		}
 	}
 
@@ -159,7 +151,7 @@ Generate the explanation:`;
 		diagnosisResults: DiagnosisResult[],
 	): Promise<string[]> {
 		const symptomsText = symptoms.join(", ");
-		const topDisease = diagnosisResults[0]?.disease.name || "unknown condition";
+		const topDisease = diagnosisResults[0]?.diseaseName || "unknown condition";
 
 		const prompt = `You are a medical AI assistant. Suggest 3-5 relevant follow-up questions to better understand the patient's condition.
 
@@ -180,7 +172,7 @@ Return ONLY a JSON array:
 			const response = await this.callLLM(prompt);
 			const questions = JSON.parse(response.text.trim());
 			return Array.isArray(questions) ? questions : [];
-		} catch (error) {
+		} catch (_error) {
 			// Fallback questions
 			return [
 				"How long have you had these symptoms?",
@@ -190,51 +182,13 @@ Return ONLY a JSON array:
 		}
 	}
 
-	/**
-	 * Call the configured LLM provider
-	 */
 	private async callLLM(prompt: string): Promise<LLMResponse> {
-		switch (this.config.provider) {
-			case "openai":
-				return await this.callOpenAI(prompt);
-			case "gemini":
-				return await this.callGemini(prompt);
-			case "anthropic":
-				return await this.callAnthropic(prompt);
-			case "cloudflare":
-				return await this.callCloudflareAI(prompt);
-			default:
-				throw new ServiceError(
-					"UNSUPPORTED_PROVIDER",
-					`LLM provider ${this.config.provider} is not supported`,
-				);
-		}
-	}
+		const data = await openRouter.request(
+			prompt,
+			this.config.model,
+			this.config.openRouterApiKey,
+		);
 
-	/**
-	 * Call OpenAI API
-	 */
-	private async callOpenAI(prompt: string): Promise<LLMResponse> {
-		const response = await fetch("https://api.openai.com/v1/chat/completions", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${this.config.apiKey}`,
-			},
-			body: JSON.stringify({
-				model: this.config.model || "gpt-4-turbo-preview",
-				messages: [{ role: "user", content: prompt }],
-				temperature: this.config.temperature || 0.7,
-				max_tokens: this.config.maxTokens || 1000,
-			}),
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`OpenAI API error: ${error}`);
-		}
-
-		const data = await response.json();
 		return {
 			text: data.choices[0]?.message?.content || "",
 			usage: {
@@ -243,95 +197,6 @@ Return ONLY a JSON array:
 				totalTokens: data.usage?.total_tokens || 0,
 			},
 		};
-	}
-
-	/**
-	 * Call Google Gemini API
-	 */
-	private async callGemini(prompt: string): Promise<LLMResponse> {
-		const response = await fetch(
-			`https://generativelanguage.googleapis.com/v1beta/models/${this.config.model || "gemini-pro"}:generateContent?key=${this.config.apiKey}`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					contents: [
-						{
-							parts: [{ text: prompt }],
-						},
-					],
-					generationConfig: {
-						temperature: this.config.temperature || 0.7,
-						maxOutputTokens: this.config.maxTokens || 1000,
-					},
-				}),
-			},
-		);
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Gemini API error: ${error}`);
-		}
-
-		const data = await response.json();
-		const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-		return {
-			text,
-			usage: {
-				promptTokens: data.usageMetadata?.promptTokenCount || 0,
-				completionTokens: data.usageMetadata?.candidatesTokenCount || 0,
-				totalTokens: data.usageMetadata?.totalTokenCount || 0,
-			},
-		};
-	}
-
-	/**
-	 * Call Anthropic Claude API
-	 */
-	private async callAnthropic(prompt: string): Promise<LLMResponse> {
-		const response = await fetch("https://api.anthropic.com/v1/messages", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-api-key": this.config.apiKey,
-				"anthropic-version": "2023-06-01",
-			},
-			body: JSON.stringify({
-				model: this.config.model || "claude-3-sonnet-20240229",
-				messages: [{ role: "user", content: prompt }],
-				temperature: this.config.temperature || 0.7,
-				max_tokens: this.config.maxTokens || 1000,
-			}),
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Anthropic API error: ${error}`);
-		}
-
-		const data = await response.json();
-		return {
-			text: data.content?.[0]?.text || "",
-			usage: {
-				promptTokens: data.usage?.input_tokens || 0,
-				completionTokens: data.usage?.output_tokens || 0,
-				totalTokens:
-					(data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
-			},
-		};
-	}
-
-	/**
-	 * Call Cloudflare AI (fallback)
-	 */
-	private async callCloudflareAI(prompt: string): Promise<LLMResponse> {
-		throw new ServiceError(
-			"CLOUDFLARE_AI_NOT_CONFIGURED",
-			"Cloudflare AI requires AI binding - use other LLM providers",
-		);
 	}
 
 	/**
@@ -357,10 +222,11 @@ Return ONLY a JSON array:
 				symptoms: parsed.symptoms || [],
 			};
 		} catch (error) {
+			logger.error({ error, text }, "Failed to parse LLM symptom response");
+
 			throw new ServiceError(
 				"PARSE_ERROR",
 				"Failed to parse LLM symptom response",
-				{ originalText: text, error },
 			);
 		}
 	}

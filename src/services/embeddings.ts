@@ -1,8 +1,5 @@
-import type { PrismaClient } from "../../lib/prisma-client";
-import type { EntityType, EmbeddingResponse } from "../types";
-import { EmbeddingError } from "../utils/errors";
-import { logger } from "../utils/logger";
-import { chunk } from "../utils/helpers";
+import type { PrismaClient } from "@/libs/prisma-client";
+import { chunk, EmbeddingError, logger } from "@/utils";
 
 export class EmbeddingsService {
 	constructor(

@@ -1,8 +1,8 @@
-import type { MatchedSymptom, DiseaseCandidate } from "../types";
-import { logger } from "../utils/logger";
-import type { EmbeddingsService } from "./embeddings.service";
-import type { GraphService } from "./graph.service";
-import type { VectorStoreService } from "./vectorstore.service";
+import type { DiseaseCandidate, MatchedSymptom } from "@/types";
+import { logger } from "@/utils/logger";
+import type { EmbeddingsService } from "./embeddings";
+import type { GraphService } from "./graph";
+import type { VectorStoreService } from "./vector-store";
 
 export class SearchService {
 	constructor(

@@ -1,6 +1,5 @@
 import type { Context, Next } from "hono";
-import { AppError } from "../utils/errors";
-import { logger } from "../utils/logger";
+import { AppError, logger } from "@/utils";
 
 /**
  * Global error handling middleware

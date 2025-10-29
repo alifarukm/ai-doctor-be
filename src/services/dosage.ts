@@ -1,12 +1,10 @@
-import type { PrismaClient } from "../../lib/prisma-client";
+import type { PrismaClient } from "@/libs/prisma-client";
 import type {
 	DosageInfo,
 	MedicationRecommendation,
 	PatientInfo,
-} from "../types";
-import { DatabaseError } from "../utils/errors";
-import { formatDosage } from "../utils/helpers";
-import { logger } from "../utils/logger";
+} from "@/types";
+import { DatabaseError, formatDosage, logger } from "@/utils";
 
 export class DosageService {
 	constructor(private prisma: PrismaClient) {}

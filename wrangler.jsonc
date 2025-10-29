@@ -28,12 +28,9 @@
 		"EMBEDDING_DIMENSIONS": "768",
 		"VECTOR_SEARCH_LIMIT": "10",
 		"VECTOR_SEARCH_THRESHOLD": "0.5",
-		// LLM Configuration - Choose one: "openai", "gemini", or "anthropic"
-		"LLM_PROVIDER": "openai",
-		"LLM_API_KEY": "your-api-key-here",
-		"LLM_MODEL": "gpt-4-turbo-preview",
-		"LLM_TEMPERATURE": "0.7",
-		"LLM_MAX_TOKENS": "1000"
+
+		"OPEN_ROUTER_API_KEY": "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",
+		"LLM_MODEL": "z-ai/glm-4.5-air:free"
 	}
 	// "compatibility_flags": [
 	//   "nodejs_compat"

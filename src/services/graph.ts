@@ -1,7 +1,6 @@
-import type { PrismaClient } from "../../lib/prisma-client";
-import type { DiseaseGraphNode, MatchedSymptom, SymptomMatch } from "../types";
-import { DatabaseError } from "../utils/errors";
-import { logger } from "../utils/logger";
+import type { PrismaClient } from "@/libs/prisma-client";
+import type { DiseaseGraphNode, MatchedSymptom, SymptomMatch } from "@/types";
+import { DatabaseError, logger } from "@/utils";
 
 export class GraphService {
 	constructor(public prisma: PrismaClient) {}
