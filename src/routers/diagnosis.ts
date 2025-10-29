@@ -1,18 +1,19 @@
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import type { CloudflareBindings } from "../types";
-import { DiagnosisRequestSchema } from "../utils/validators";
-import { ValidationError } from "../utils/errors";
-import { logger } from "../utils/logger";
+import { Hono } from "hono";
+import prismaClients from "../../lib/prisma/index";
 import {
 	DiagnosisService,
-	NLPService,
-	EmbeddingsService,
-	VectorstoreService,
-	GraphService,
-	SearchService,
 	DosageService,
+	EmbeddingsService,
+	GraphService,
+	NLPService,
+	SearchService,
+	VectorStoreService,
 } from "../services";
+import type { CloudflareBindings } from "../types";
+import { ValidationError } from "../utils/errors";
+import { logger } from "../utils/logger";
+import { DiagnosisRequestSchema } from "../utils/validators";
 
 export const diagnosisRouter = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -29,23 +30,26 @@ diagnosisRouter.post(
 
 			logger.info({ message: request.message }, "Diagnosis request received");
 
-			// Initialize services
-			const nlpService = new NLPService(env.AI, env.DB, env.NLP_MODEL);
+			// Initialize Prisma client
+			const prisma = await prismaClients.fetch(env.DB);
+
+			// Initialize services with Prisma
+			const nlpService = new NLPService(env.AI, prisma, env.NLP_MODEL);
 			const embeddingsService = new EmbeddingsService(
 				env.AI,
-				env.DB,
+				prisma,
 				env.EMBEDDING_MODEL,
 			);
-			const vectorstoreService = new VectorstoreService(env.VECTORIZE, env.DB);
-			const graphService = new GraphService(env.DB);
+			const vectorStoreService = new VectorStoreService(env.VECTORIZE, prisma);
+			const graphService = new GraphService(prisma);
 			const searchService = new SearchService(
 				embeddingsService,
-				vectorstoreService,
+				vectorStoreService,
 				graphService,
 			);
-			const dosageService = new DosageService(env.DB);
+			const dosageService = new DosageService(prisma);
 			const diagnosisService = new DiagnosisService(
-				env.DB,
+				prisma,
 				nlpService,
 				searchService,
 				dosageService,

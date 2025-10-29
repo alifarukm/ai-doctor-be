@@ -1,9 +1,10 @@
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+import prismaClients from "../../lib/prisma/index";
+import { EmbeddingsService, VectorStoreService } from "../services";
 import type { CloudflareBindings } from "../types";
-import { BatchEmbeddingRequestSchema } from "../utils/validators";
 import { logger } from "../utils/logger";
-import { EmbeddingsService, VectorstoreService } from "../services";
+import { BatchEmbeddingRequestSchema } from "../utils/validators";
 
 export const embeddingsRouter = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -16,13 +17,16 @@ embeddingsRouter.post("/generate", async (c) => {
 
 		logger.info("Batch embedding generation requested");
 
-		// Initialize services
+		// Initialize Prisma client
+		const prisma = await prismaClients.fetch(env.DB);
+
+		// Initialize services with Prisma
 		const embeddingsService = new EmbeddingsService(
 			env.AI,
-			env.DB,
+			prisma,
 			env.EMBEDDING_MODEL,
 		);
-		const vectorstoreService = new VectorstoreService(env.VECTORIZE, env.DB);
+		const vectorStoreService = new VectorStoreService(env.VECTORIZE, prisma);
 
 		// Generate embeddings for all entities
 		const result = await embeddingsService.generateAllEmbeddings();
@@ -30,16 +34,21 @@ embeddingsRouter.post("/generate", async (c) => {
 		// Now upsert to Vectorize
 		logger.info("Upserting embeddings to Vectorize");
 
-		// Get all vector embeddings from database
-		const embeddingsResult = await env.DB.prepare(
-			"SELECT vector_id, entity_type, entity_id, metadata FROM vector_embeddings",
-		).all();
+		// Get all vector embeddings from database using Prisma
+		const embeddingsResult = await prisma.vector_embeddings.findMany({
+			select: {
+				vector_id: true,
+				entity_type: true,
+				entity_id: true,
+				metadata: true,
+			},
+		});
 
 		// For each embedding, generate and upsert to Vectorize
 		let upserted = 0;
 		let failed = 0;
 
-		for (const row of embeddingsResult.results) {
+		for (const row of embeddingsResult) {
 			try {
 				const metadata = JSON.parse(row.metadata as string);
 				const text = metadata.description
@@ -49,7 +58,7 @@ embeddingsRouter.post("/generate", async (c) => {
 				const embedding =
 					await embeddingsService.generateEmbeddingForText(text);
 
-				await vectorstoreService.upsertVector(
+				await vectorStoreService.upsertVector(
 					row.vector_id as string,
 					embedding,
 					{
@@ -125,9 +134,12 @@ embeddingsRouter.post(
 				"Batch generation for entity type",
 			);
 
+			// Initialize Prisma client
+			const prisma = await prismaClients.fetch(env.DB);
+
 			const embeddingsService = new EmbeddingsService(
 				env.AI,
-				env.DB,
+				prisma,
 				env.EMBEDDING_MODEL,
 			);
 

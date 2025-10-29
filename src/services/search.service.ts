@@ -1,13 +1,13 @@
 import type { MatchedSymptom, DiseaseCandidate } from "../types";
 import { logger } from "../utils/logger";
-import { EmbeddingsService } from "./embeddings.service";
-import { VectorstoreService } from "./vectorstore.service";
-import { GraphService } from "./graph.service";
+import type { EmbeddingsService } from "./embeddings.service";
+import type { GraphService } from "./graph.service";
+import type { VectorStoreService } from "./vectorstore.service";
 
 export class SearchService {
 	constructor(
 		private embeddingsService: EmbeddingsService,
-		private vectorstoreService: VectorstoreService,
+		private vectorStoreService: VectorStoreService,
 		private graphService: GraphService,
 	) {}
 
@@ -35,7 +35,7 @@ export class SearchService {
 				await this.embeddingsService.generateEmbeddingForText(queryText);
 
 			// Search for similar diseases and symptoms in vector store
-			const vectorResults = await this.vectorstoreService.searchVectors(
+			const vectorResults = await this.vectorStoreService.searchVectors(
 				queryEmbedding,
 				Math.min(limit * 3, 30), // Get more candidates for graph filtering
 				0.4, // Lower threshold to get more candidates
@@ -123,7 +123,7 @@ export class SearchService {
 	}
 
 	/**
-	 * Get disease IDs that have specific symptoms
+	 * Get disease IDs that have specific symptoms using Prisma through graphService
 	 */
 	private async getDiseasesFromSymptoms(
 		symptomIds: number[],
@@ -133,19 +133,21 @@ export class SearchService {
 				return [];
 			}
 
-			const graphService = this.graphService as GraphService & {
-				db: import("@cloudflare/workers-types").D1Database;
-			};
+			// Use Prisma through graphService
+			const diseaseSymptoms =
+				await this.graphService.prisma.disease_symptoms.findMany({
+					where: {
+						symptom_id: {
+							in: symptomIds,
+						},
+					},
+					select: {
+						disease_id: true,
+					},
+					distinct: ["disease_id"],
+				});
 
-			const placeholders = symptomIds.map(() => "?").join(",");
-			const result = await graphService.db
-				.prepare(
-					`SELECT DISTINCT disease_id FROM disease_symptoms WHERE symptom_id IN (${placeholders})`,
-				)
-				.bind(...symptomIds)
-				.all();
-
-			return result.results.map((r) => r.disease_id as number);
+			return diseaseSymptoms.map((ds) => ds.disease_id);
 		} catch (error) {
 			logger.error({ error }, "Error getting diseases from symptoms");
 			return [];

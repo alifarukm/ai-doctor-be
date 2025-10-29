@@ -1,10 +1,10 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { PrismaClient } from "../../lib/prisma-client";
 import type { DiseaseGraphNode, MatchedSymptom, SymptomMatch } from "../types";
 import { DatabaseError } from "../utils/errors";
 import { logger } from "../utils/logger";
 
 export class GraphService {
-	constructor(private db: D1Database) {}
+	constructor(public prisma: PrismaClient) {}
 
 	/**
 	 * Traverse disease graph to get all related information
@@ -18,96 +18,80 @@ export class GraphService {
 			const graphNodes: DiseaseGraphNode[] = [];
 
 			for (const diseaseId of diseaseIds) {
-				// Get disease basic info
-				const diseaseResult = await this.db
-					.prepare(
-						`SELECT d.id, d.name, d.description, dc.name as category
-						 FROM diseases d
-						 LEFT JOIN disease_categories dc ON d.category_id = dc.id
-						 WHERE d.id = ?`,
-					)
-					.bind(diseaseId)
-					.first();
+				// Get disease with all related data using Prisma includes
+				const disease = await this.prisma.diseases.findUnique({
+					where: { id: diseaseId },
+					include: {
+						category: {
+							select: {
+								name: true,
+							},
+						},
+						symptoms: {
+							include: {
+								symptom: {
+									select: {
+										id: true,
+										name: true,
+									},
+								},
+							},
+							orderBy: {
+								importance: "desc",
+							},
+						},
+						treatments: {
+							orderBy: {
+								priority: "asc",
+							},
+						},
+						diagnosis_criterions: {
+							orderBy: {
+								priority: "asc",
+							},
+						},
+						supportive_cares: {
+							orderBy: {
+								priority: "asc",
+							},
+						},
+					},
+				});
 
-				if (!diseaseResult) {
+				if (!disease) {
 					continue;
 				}
 
-				// Get disease symptoms
-				const symptomsResult = await this.db
-					.prepare(
-						`SELECT s.id, s.name, ds.is_primary, ds.importance, ds.description
-						 FROM disease_symptoms ds
-						 JOIN symptoms s ON ds.symptom_id = s.id
-						 WHERE ds.disease_id = ?
-						 ORDER BY ds.importance DESC`,
-					)
-					.bind(diseaseId)
-					.all();
-
-				// Get treatments
-				const treatmentsResult = await this.db
-					.prepare(
-						`SELECT id, type, name, priority, is_required, conditions
-						 FROM medications_treatments
-						 WHERE disease_id = ?
-						 ORDER BY priority ASC`,
-					)
-					.bind(diseaseId)
-					.all();
-
-				// Get diagnostic criteria
-				const criteriaResult = await this.db
-					.prepare(
-						`SELECT criteria, type, priority
-						 FROM diagnosis_criterions
-						 WHERE disease_id = ?
-						 ORDER BY priority ASC`,
-					)
-					.bind(diseaseId)
-					.all();
-
-				// Get supportive care
-				const supportiveCareResult = await this.db
-					.prepare(
-						`SELECT category, title, description, priority
-						 FROM supportive_care
-						 WHERE disease_id = ?
-						 ORDER BY priority ASC`,
-					)
-					.bind(diseaseId)
-					.all();
-
 				const graphNode: DiseaseGraphNode = {
-					diseaseId: diseaseResult.id as number,
-					diseaseName: diseaseResult.name as string,
-					description: (diseaseResult.description as string) || undefined,
-					category: (diseaseResult.category as string) || undefined,
-					symptoms: symptomsResult.results.map((s) => ({
-						id: s.id as number,
-						name: s.name as string,
-						isPrimary: Boolean(s.is_primary),
-						importance: (s.importance as number) || 1,
-						description: (s.description as string) || undefined,
+					diseaseId: disease.id,
+					diseaseName: disease.name,
+					description: disease.description || undefined,
+					category: disease.category?.name || undefined,
+					symptoms: disease.symptoms.map((ds) => ({
+						id: ds.symptom.id,
+						name: ds.symptom.name,
+						isPrimary: ds.is_primary,
+						importance: ds.importance,
+						description: ds.description || undefined,
 					})),
-					treatments: treatmentsResult.results.map((t) => ({
-						id: t.id as number,
-						type: t.type as string,
-						name: t.name as string,
-						priority: t.priority as number,
-						isRequired: Boolean(t.is_required),
-						conditions: (t.conditions as string) || undefined,
+					treatments: disease.treatments.map((t) => ({
+						id: t.id,
+						type: t.type,
+						name: t.name,
+						priority: t.priority,
+						isRequired: t.is_required,
+						conditions: t.conditions || undefined,
 					})),
-					diagnosticCriteria: criteriaResult.results.map((c) => ({
-						criteria: c.criteria as string,
-						type: c.type as string,
-						priority: c.priority as number,
+					diagnosticCriteria: disease.diagnosis_criterions.map((c) => ({
+						criteria: c.criteria,
+						type: c.type,
+						priority: c.priority,
 					})),
-					supportiveCare: supportiveCareResult.results.map((sc) => ({
-						category: sc.category as string,
-						title: sc.title as string,
-						description: sc.description as string,
-						priority: sc.priority as number,
+					supportiveCare: disease.supportive_cares.map((sc) => ({
+						category: sc.category,
+						title: sc.title,
+						description: sc.description,
+						priority: sc.priority,
 					})),
 				};
 
@@ -218,32 +202,36 @@ export class GraphService {
 		Map<number, Array<{ id: number; name: string; isPrimary: boolean }>>
 	> {
 		try {
-			const placeholders = diseaseIds.map(() => "?").join(",");
-
-			const result = await this.db
-				.prepare(
-					`SELECT ds.disease_id, s.id, s.name, ds.is_primary
-					 FROM disease_symptoms ds
-					 JOIN symptoms s ON ds.symptom_id = s.id
-					 WHERE ds.disease_id IN (${placeholders})`,
-				)
-				.bind(...diseaseIds)
-				.all();
+			// Use Prisma to get disease symptoms with relations
+			const diseaseSymptoms = await this.prisma.disease_symptoms.findMany({
+				where: {
+					disease_id: {
+						in: diseaseIds,
+					},
+				},
+				include: {
+					symptom: {
+						select: {
+							id: true,
+							name: true,
+						},
+					},
+				},
+			});
 
 			const symptomsMap = new Map<
 				number,
 				Array<{ id: number; name: string; isPrimary: boolean }>
 			>();
 
-			for (const row of result.results) {
-				const diseaseId = row.disease_id as number;
-				if (!symptomsMap.has(diseaseId)) {
-					symptomsMap.set(diseaseId, []);
+			for (const ds of diseaseSymptoms) {
+				if (!symptomsMap.has(ds.disease_id)) {
+					symptomsMap.set(ds.disease_id, []);
 				}
-				symptomsMap.get(diseaseId)?.push({
-					id: row.id as number,
-					name: row.name as string,
-					isPrimary: Boolean(row.is_primary),
+				symptomsMap.get(ds.disease_id)?.push({
+					id: ds.symptom.id,
+					name: ds.symptom.name,
+					isPrimary: ds.is_primary,
 				});
 			}
 

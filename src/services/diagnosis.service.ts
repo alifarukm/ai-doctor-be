@@ -1,4 +1,4 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { PrismaClient } from "../../lib/prisma-client";
 import type {
 	DiagnosisRequest,
 	DiagnosisResponse,
@@ -13,7 +13,7 @@ import { DosageService } from "./dosage.service";
 
 export class DiagnosisService {
 	constructor(
-		private db: D1Database,
+		private prisma: PrismaClient,
 		private nlpService: NLPService,
 		private searchService: SearchService,
 		private dosageService: DosageService,
@@ -166,24 +166,25 @@ export class DiagnosisService {
 		diseaseIds: number[],
 	): Promise<SupportiveCareItem[]> {
 		try {
-			const placeholders = diseaseIds.map(() => "?").join(",");
+			// Use Prisma to get supportive care
+			const supportiveCare = await this.prisma.supportive_care.findMany({
+				where: {
+					disease_id: {
+						in: diseaseIds,
+					},
+				},
+				orderBy: {
+					priority: "asc",
+				},
+				take: 10,
+				distinct: ["category", "title"],
+			});
 
-			const result = await this.db
-				.prepare(
-					`SELECT DISTINCT category, title, description, priority
-					 FROM supportive_care
-					 WHERE disease_id IN (${placeholders})
-					 ORDER BY priority ASC
-					 LIMIT 10`,
-				)
-				.bind(...diseaseIds)
-				.all();
-
-			return result.results.map((row) => ({
-				category: row.category as string,
-				title: row.title as string,
-				description: row.description as string,
-				priority: row.priority as number,
+			return supportiveCare.map((sc) => ({
+				category: sc.category,
+				title: sc.title,
+				description: sc.description,
+				priority: sc.priority,
 			}));
 		} catch (error) {
 			logger.error({ error }, "Error getting supportive care");
@@ -204,36 +205,26 @@ export class DiagnosisService {
 		try {
 			const queryId = crypto.randomUUID();
 
-			// Store in user_queries table
-			await this.db
-				.prepare(
-					`INSERT INTO user_queries (id, session_id, raw_symptoms, diagnosed_diseases, confidence, created_at)
-					 VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-				)
-				.bind(
-					queryId,
-					request.sessionId || null,
-					request.message,
-					JSON.stringify(results),
-					overallConfidence,
-				)
-				.run();
+			// Store in user_queries table using Prisma
+			await this.prisma.user_queries.create({
+				data: {
+					id: queryId,
+					session_id: request.sessionId || null,
+					raw_symptoms: request.message,
+					diagnosed_diseases: results as any, // JSON type
+					confidence: overallConfidence,
+				},
+			});
 
-			// Store matched symptoms in query_symptoms table
-			for (const symptom of validatedSymptoms) {
-				await this.db
-					.prepare(
-						`INSERT INTO query_symptoms (id, query_id, symptom_id, confidence, createdAt)
-						 VALUES (?, ?, ?, ?, datetime('now'))`,
-					)
-					.bind(
-						crypto.randomUUID(),
-						queryId,
-						symptom.symptomId,
-						symptom.confidence,
-					)
-					.run();
-			}
+			// Store matched symptoms in query_symptoms table using Prisma
+			await this.prisma.query_symptoms.createMany({
+				data: validatedSymptoms.map((symptom) => ({
+					id: crypto.randomUUID(),
+					query_id: queryId,
+					symptom_id: symptom.symptomId,
+					confidence: symptom.confidence,
+				})),
+			});
 
 			logger.info({ queryId }, "Diagnosis stored in database");
 

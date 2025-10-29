@@ -1,4 +1,4 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { PrismaClient } from "../../lib/prisma-client";
 import type { ExtractedSymptoms, MatchedSymptom } from "../types";
 import { NLPError } from "../utils/errors";
 import { logger } from "../utils/logger";
@@ -7,7 +7,7 @@ import { normalizeText, similarityScore } from "../utils/helpers";
 export class NLPService {
 	constructor(
 		private ai: Ai,
-		private db: D1Database,
+		private prisma: PrismaClient,
 		private nlpModel: string,
 	) {}
 
@@ -77,16 +77,14 @@ Extracted symptoms:`;
 				"Validating symptoms",
 			);
 
-			// Get all known symptoms from database
-			const knownSymptomsResult = await this.db
-				.prepare("SELECT id, name, description FROM symptoms")
-				.all();
-
-			const knownSymptoms = knownSymptomsResult.results as Array<{
-				id: number;
-				name: string;
-				description: string | null;
-			}>;
+			// Get all known symptoms from database using Prisma
+			const knownSymptoms = await this.prisma.symptoms.findMany({
+				select: {
+					id: true,
+					name: true,
+					description: true,
+				},
+			});
 
 			const matched: MatchedSymptom[] = [];
 

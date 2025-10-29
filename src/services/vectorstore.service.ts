@@ -1,13 +1,13 @@
 import type { Vectorize, VectorizeVector } from "@cloudflare/workers-types";
-import type { D1Database } from "@cloudflare/workers-types";
+import type { PrismaClient } from "../../lib/prisma-client";
 import type { VectorMetadata, VectorSearchResult } from "../types";
 import { VectorizeError } from "../utils/errors";
 import { logger } from "../utils/logger";
 
-export class VectorstoreService {
+export class VectorStoreService {
 	constructor(
 		private vectorize: Vectorize,
-		private db: D1Database,
+		private prisma: PrismaClient,
 	) {}
 
 	/**
@@ -93,29 +93,37 @@ export class VectorstoreService {
 	}
 
 	/**
-	 * Get vector metadata from database
+	 * Get vector metadata from database using Prisma
 	 */
 	async getVectorMetadata(vectorId: string): Promise<VectorMetadata | null> {
 		try {
-			const result = await this.db
-				.prepare(
-					"SELECT entity_type, entity_id, metadata FROM vector_embeddings WHERE vector_id = ?",
-				)
-				.bind(vectorId)
-				.first();
+			const embedding = await this.prisma.vector_embeddings.findUnique({
+				where: {
+					vector_id: vectorId,
+				},
+				select: {
+					entity_type: true,
+					entity_id: true,
+					metadata: true,
+					created_at: true,
+				},
+			});
 
-			if (!result) {
+			if (!embedding) {
 				return null;
 			}
 
-			const metadata = JSON.parse(result.metadata as string);
+			const metadata =
+				typeof embedding.metadata === "string"
+					? JSON.parse(embedding.metadata)
+					: embedding.metadata;
 
 			return {
-				entityType: result.entity_type as VectorMetadata["entityType"],
-				entityId: result.entity_id as number,
+				entityType: embedding.entity_type as VectorMetadata["entityType"],
+				entityId: Number(embedding.entity_id),
 				name: metadata.name,
 				description: metadata.description,
-				createdAt: new Date().toISOString(),
+				createdAt: embedding.created_at.toISOString(),
 			};
 		} catch (error) {
 			logger.error({ error, vectorId }, "Error getting vector metadata");

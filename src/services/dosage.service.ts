@@ -1,4 +1,4 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { PrismaClient } from "../../lib/prisma-client";
 import type {
 	PatientInfo,
 	MedicationRecommendation,
@@ -9,7 +9,7 @@ import { logger } from "../utils/logger";
 import { formatDosage } from "../utils/helpers";
 
 export class DosageService {
-	constructor(private db: D1Database) {}
+	constructor(private prisma: PrismaClient) {}
 
 	/**
 	 * Get medication recommendations for a disease with patient-specific dosages
@@ -24,93 +24,68 @@ export class DosageService {
 				"Getting medication recommendations",
 			);
 
-			// Get all treatments for this disease
-			const treatmentsResult = await this.db
-				.prepare(
-					`SELECT id, type, name, priority, is_required, conditions
-					 FROM medications_treatments
-					 WHERE disease_id = ?
-					 ORDER BY priority ASC`,
-				)
-				.bind(diseaseId)
-				.all();
+			// Get all treatments for this disease using Prisma
+			const treatments = await this.prisma.medications_treatments.findMany({
+				where: {
+					disease_id: diseaseId,
+				},
+				orderBy: {
+					priority: "asc",
+				},
+			});
 
 			const recommendations: MedicationRecommendation[] = [];
 
-			for (const treatment of treatmentsResult.results) {
-				const treatmentId = treatment.id as number;
+			for (const treatment of treatments) {
+				// Convert patient age to months
+				const ageInMonths = patientInfo.age * 12;
 
-				// Get medications for this treatment with appropriate dosages
-				const dosagesResult = await this.db
-					.prepare(
-						`SELECT
-							md.id as dosage_id,
-							m.id as medication_id,
-							m.generic_name,
-							m.type,
-							m.contraindications,
-							md.dose,
-							md.frequency,
-							md.duration,
-							md.max_single_dose,
-							md.max_daily_dose,
-							md.administration,
-							md.notes,
-							md.is_alternative,
-							md.allergy_info,
-							md.patient_type,
-							md.age_min,
-							md.age_max,
-							md.weight_min,
-							md.weight_max
-						 FROM medications_dosages md
-						 JOIN medications m ON md.medication_id = m.id
-						 WHERE md.treatment_id = ?
-						 AND md.patient_type = ?`,
-					)
-					.bind(treatmentId, patientInfo.type)
-					.all();
+				// Get medications for this treatment with appropriate dosages using Prisma
+				const dosages = await this.prisma.medications_dosages.findMany({
+					where: {
+						treatment_id: treatment.id,
+						patient_type: patientInfo.type,
+						// Age filters - only apply if specified
+						AND: [
+							{
+								OR: [{ age_min: null }, { age_min: { lte: ageInMonths } }],
+							},
+							{
+								OR: [{ age_max: null }, { age_max: { gte: ageInMonths } }],
+							},
+							{
+								OR: [
+									{ weight_min: null },
+									{ weight_min: { lte: patientInfo.weight } },
+								],
+							},
+							{
+								OR: [
+									{ weight_max: null },
+									{ weight_max: { gte: patientInfo.weight } },
+								],
+							},
+						],
+					},
+					include: {
+						medication: {
+							include: {
+								medications_brand_names: {
+									select: {
+										name: true,
+									},
+								},
+							},
+						},
+					},
+				});
 
-				for (const dosage of dosagesResult.results) {
-					// Check if this dosage applies to the patient
-					const ageInMonths = patientInfo.age * 12; // Convert years to months
-					const ageMin = dosage.age_min as number | null;
-					const ageMax = dosage.age_max as number | null;
-					const weightMin = dosage.weight_min as number | null;
-					const weightMax = dosage.weight_max as number | null;
-
-					// Apply age filter
-					if (ageMin !== null && ageInMonths < ageMin) {
-						continue;
-					}
-					if (ageMax !== null && ageInMonths > ageMax) {
-						continue;
-					}
-
-					// Apply weight filter
-					if (weightMin !== null && patientInfo.weight < weightMin) {
-						continue;
-					}
-					if (weightMax !== null && patientInfo.weight > weightMax) {
-						continue;
-					}
-
+				for (const dosage of dosages) {
 					// Calculate dosage
-					const calculatedDose = formatDosage(
-						dosage.dose as string,
-						patientInfo.weight,
-					);
+					const calculatedDose = formatDosage(dosage.dose, patientInfo.weight);
 
-					// Get brand names
-					const brandNamesResult = await this.db
-						.prepare(
-							"SELECT name FROM medications_brand_names WHERE medication_id = ?",
-						)
-						.bind(dosage.medication_id)
-						.all();
-
-					const brandNames = brandNamesResult.results.map(
-						(bn) => bn.name as string,
+					const brandNames = dosage.medication.medications_brand_names.map(
+						(bn) => bn.name,
 					);
 
 					// Check for allergies
@@ -118,37 +93,35 @@ export class DosageService {
 					if (
 						dosage.allergy_info &&
 						patientInfo.allergies?.some((a) =>
-							(dosage.allergy_info as string)
-								.toLowerCase()
-								.includes(a.toLowerCase()),
+							dosage.allergy_info!.toLowerCase().includes(a.toLowerCase()),
 						)
 					) {
-						warnings.push(`Warning: ${dosage.allergy_info as string}`);
+						warnings.push(`Warning: ${dosage.allergy_info}`);
 					}
 
 					const dosageInfo: DosageInfo = {
 						calculatedDose,
-						frequency: dosage.frequency as string,
-						duration: dosage.duration as string,
-						maxSingleDose: (dosage.max_single_dose as string) || undefined,
-						maxDailyDose: (dosage.max_daily_dose as string) || undefined,
-						administration: (dosage.administration as string) || undefined,
-						notes: (dosage.notes as string) || undefined,
+						frequency: dosage.frequency,
+						duration: dosage.duration,
+						maxSingleDose: dosage.max_single_dose || undefined,
+						maxDailyDose: dosage.max_daily_dose || undefined,
+						administration: dosage.administration || undefined,
+						notes: dosage.notes || undefined,
 					};
 
 					const recommendation: MedicationRecommendation = {
-						medicationId: dosage.medication_id as number,
-						genericName: dosage.generic_name as string,
+						medicationId: dosage.medication.id,
+						genericName: dosage.medication.generic_name,
 						brandNames,
-						type: dosage.type as string,
+						type: dosage.medication.type,
 						dosage: dosageInfo,
-						contraindications: dosage.contraindications
-							? [dosage.contraindications as string]
+						contraindications: dosage.medication.contraindications
+							? [dosage.medication.contraindications]
 							: undefined,
 						warnings: warnings.length > 0 ? warnings : undefined,
-						priority: treatment.priority as number,
-						isRequired: Boolean(treatment.is_required),
-						isAlternative: Boolean(dosage.is_alternative),
+						priority: treatment.priority,
+						isRequired: treatment.is_required,
+						isAlternative: dosage.is_alternative,
 					};
 
 					recommendations.push(recommendation);
@@ -176,30 +149,5 @@ export class DosageService {
 				error as Error,
 			);
 		}
-	}
-
-	/**
-	 * Check medication contraindications for patient
-	 */
-	private checkContraindications(
-		contraindications: string | null,
-		patientInfo: PatientInfo,
-	): string[] {
-		const warnings: string[] = [];
-
-		if (!contraindications) {
-			return warnings;
-		}
-
-		// Check for allergy-related contraindications
-		if (patientInfo.allergies) {
-			for (const allergy of patientInfo.allergies) {
-				if (contraindications.toLowerCase().includes(allergy.toLowerCase())) {
-					warnings.push(`Contraindicated due to ${allergy} allergy`);
-				}
-			}
-		}
-
-		return warnings;
 	}
 }
