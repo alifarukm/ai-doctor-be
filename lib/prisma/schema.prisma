@@ -51,7 +51,7 @@ model diseases {
   description String? // Hastalık açıklaması
   category_id Int
   category    disease_categories @relation(fields: [category_id], references: [id])
-  vectorId    String?            @unique // Vectorize'daki embedding ID
+  vector_id    String?            @unique // Vectorize'daki embedding ID
 
   symptoms             disease_symptoms[]
   treatments           medications_treatments[]
@@ -68,7 +68,7 @@ model symptoms {
   name        String  @unique // "Boğaz ağrısı", "Ateş" vb.
   description String?
   severity    String? // "hafif", "orta", "şiddetli"
-  vectorId    String? @unique // Vectorize'daki embedding ID
+  vector_id    String? @unique // Vectorize'daki embedding ID
 
   disease_symptoms disease_symptoms[]
   query_symptoms   query_symptoms[]
