@@ -57,12 +57,6 @@ embeddingsRouter.post("/generate", async (c) => {
 		let failed = 0;
 
 		for (const row of embeddingsResult) {
-			logger.debug("********");
-
-			logger.debug({ row }, "Processing embedding");
-
-			logger.debug("********");
-
 			try {
 				const metadata = JSON.parse(row.metadata as string);
 				const text = metadata.description

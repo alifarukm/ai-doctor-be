@@ -33,6 +33,12 @@ type OpenRouterResponse = {
 };
 
 export async function request(prompt: string, model: string, apiKey: string) {
+	console.log({
+		prompt,
+		model,
+		apiKey: apiKey,
+	});
+
 	const response = await fetch(
 		"https://openrouter.ai/api/v1/chat/completions",
 		{

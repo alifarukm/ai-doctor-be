@@ -249,11 +249,11 @@ model query_symptoms {
 
 // Vectorize metadata tablosu (embedding tracking)
 model vector_embeddings {
-  id          String @id @default(uuid())
-  vector_id   String @unique // Vectorize'daki ID
+  id          String  @id @default(uuid())
+  vector_id   String  @unique // Vectorize'daki ID
   entity_type String // "disease", "symptom", "treatment"
   entity_id   String // İlgili entity'nin ID'si
-  metadata    Json? // Ek metadata
+  metadata    String? // Ek metadata
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

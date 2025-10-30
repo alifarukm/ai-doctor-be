@@ -1,0 +1,15 @@
+DROP TABLE if exists diagnosis_criterions;
+DROP TABLE if exists diseases;
+DROP TABLE if exists disease_categories;
+DROP TABLE if exists disease_symptoms;
+DROP TABLE if exists medications;
+DROP TABLE if exists medications_brand_names;
+DROP TABLE if exists medications_dosages;
+DROP TABLE if exists medications_treatments;
+DROP TABLE if exists query_symptoms;
+DROP TABLE if exists supportive_care;
+DROP TABLE if exists symptoms;
+DROP TABLE if exists user_queries;
+DROP TABLE if exists users;
+DROP TABLE if exists vector_embeddings;
+DELETE from sqlite_sequence;

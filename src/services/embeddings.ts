@@ -91,10 +91,10 @@ export class EmbeddingsService {
 								vector_id: vectorId,
 								entity_type: "disease",
 								entity_id: disease.id.toString(),
-								metadata: {
+								metadata: JSON.stringify({
 									name: disease.name,
 									description: disease.description,
-								},
+								}),
 							},
 						});
 
@@ -187,10 +187,10 @@ export class EmbeddingsService {
 								vector_id: vectorId,
 								entity_type: "symptom",
 								entity_id: symptom.id.toString(),
-								metadata: {
+								metadata: JSON.stringify({
 									name: symptom.name,
 									description: symptom.description,
-								},
+								}),
 							},
 						});
 
