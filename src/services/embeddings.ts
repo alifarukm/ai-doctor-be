@@ -259,9 +259,12 @@ export class EmbeddingsService {
 		try {
 			logger.info({ textLength: text.length }, "Generating embedding");
 
-			const response = await this.ai.run(this.embeddingModel, {
-				text: [text],
-			});
+			const response = await this.ai.run(
+				this.embeddingModel as keyof AiModels,
+				{
+					text: [text],
+				},
+			);
 
 			const embedding = (response as { data?: number[][] })?.data?.[0];
 
