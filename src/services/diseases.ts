@@ -6,4 +6,15 @@ export class DiseasesService {
 	async getAllDiseases() {
 		return this.prisma.diseases.findMany({});
 	}
+
+	/**
+	 * Using this method will clear all vector IDs from diseases when re generating embeddings
+	 */
+	async clearVectorsFromDiseases() {
+		return this.prisma.diseases.updateMany({
+			data: {
+				vector_id: null,
+			},
+		});
+	}
 }

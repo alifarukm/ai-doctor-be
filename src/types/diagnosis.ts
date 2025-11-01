@@ -161,4 +161,8 @@ export type DiseaseCandidate = {
 	graphScore: number;
 	combinedScore: number;
 	graphNode: DiseaseGraphNode;
+	// Scoring metadata
+	boostApplied?: boolean;
+	boostAmount?: number;
+	negativePenalty?: number;
 };

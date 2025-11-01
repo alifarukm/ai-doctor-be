@@ -189,7 +189,112 @@ export class GraphService {
 			}
 		}
 
-		return Math.min(normalizedScore, 1.0);
+		// Multi-symptom boosting
+		let boostedScore = normalizedScore;
+		const matchRatio =
+			symptomMatches.length / Math.max(diseaseGraphNode.symptoms.length, 1);
+
+		// Bonus 1: Multiple symptom matches (3+)
+		if (symptomMatches.length >= 3) {
+			const matchBonus = 0.15; // 15% bonus
+			boostedScore = normalizedScore * (1 + matchBonus);
+
+			logger.debug(
+				{
+					diseaseId: diseaseGraphNode.diseaseId,
+					matchCount: symptomMatches.length,
+					bonus: matchBonus,
+				},
+				"Multi-symptom boost applied",
+			);
+		}
+
+		// Bonus 2: High match ratio (70%+)
+		if (matchRatio > 0.7) {
+			const ratioBonus = 0.1; // 10% bonus
+			boostedScore = boostedScore * (1 + ratioBonus);
+
+			logger.debug(
+				{
+					diseaseId: diseaseGraphNode.diseaseId,
+					matchRatio,
+					bonus: ratioBonus,
+				},
+				"High match ratio boost applied",
+			);
+		}
+
+		return Math.min(boostedScore, 1.0);
+	}
+
+	/**
+	 * Evaluate negative diagnostic criteria (differential diagnosis)
+	 * Returns penalty score (0-0.5) if patient symptoms conflict with negative criteria
+	 */
+	async evaluateNegativeCriteria(
+		diseaseId: number,
+		matchedSymptoms: MatchedSymptom[],
+	): Promise<number> {
+		try {
+			// Get negative criteria for this disease
+			const negativeCriteria = await this.prisma.diagnosis_criterions.findMany({
+				where: {
+					disease_id: diseaseId,
+					type: "negative",
+				},
+				orderBy: {
+					priority: "asc",
+				},
+			});
+
+			if (negativeCriteria.length === 0) {
+				return 0; // No negative criteria = no penalty
+			}
+
+			// Extract symptom names for matching
+			const symptomNames = matchedSymptoms.map((s) =>
+				s.symptomName.toLowerCase(),
+			);
+
+			let penaltyScore = 0;
+
+			for (const criterion of negativeCriteria) {
+				// Simple keyword matching
+				// Future: can be enhanced with NLP/LLM for semantic matching
+				const keywords = criterion.criteria
+					.toLowerCase()
+					.split(/[\s,]+/)
+					.filter((k) => k.length > 3); // Filter short words
+
+				// Check if any symptom matches negative criteria keywords
+				const hasConflict = keywords.some((keyword) =>
+					symptomNames.some(
+						(symptom) => symptom.includes(keyword) || keyword.includes(symptom),
+					),
+				);
+
+				if (hasConflict) {
+					// Higher priority (lower number) = higher penalty
+					const criteriaPenalty = (1 / criterion.priority) * 0.15;
+					penaltyScore += criteriaPenalty;
+
+					logger.debug(
+						{
+							diseaseId,
+							criterion: criterion.criteria,
+							penalty: criteriaPenalty,
+						},
+						"Negative criteria conflict detected",
+					);
+				}
+			}
+
+			// Cap penalty at 50%
+			return Math.min(penaltyScore, 0.5);
+		} catch (error) {
+			logger.error({ error, diseaseId }, "Error evaluating negative criteria");
+			return 0;
+		}
 	}
 
 	/**

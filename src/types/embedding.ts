@@ -31,6 +31,10 @@ export type VectorMetadata = {
 	name: string;
 	description?: string;
 	createdAt: string;
+	// Rich context metadata
+	relatedEntityIds?: number[];
+	importance?: number;
+	isPrimary?: boolean;
 };
 
 /**

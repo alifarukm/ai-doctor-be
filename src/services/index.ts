@@ -6,4 +6,5 @@ export * from "./graph";
 export * from "./llm";
 export * from "./nlp";
 export * from "./search";
+export * from "./symptoms";
 export * from "./vector-store";

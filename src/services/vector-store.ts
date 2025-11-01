@@ -23,10 +23,13 @@ export class VectorStoreService {
 				"Upserting vector",
 			);
 
+			// Remove array fields that Vectorize doesn't support
+			const { relatedEntityIds, ...cleanMetadata } = metadata;
+
 			const vector: VectorizeVector = {
 				id: vectorId,
 				values: embedding,
-				metadata: metadata as Record<string, string | number | boolean>,
+				metadata: cleanMetadata as Record<string, string | number | boolean>,
 			};
 
 			await this.vectorize.upsert([vector]);
@@ -78,89 +81,70 @@ export class VectorStoreService {
 	/**
 	 * Delete a vector from Vectorize
 	 */
-	async deleteVector(vectorId: string): Promise<void> {
+	async deleteVectors(vectorIds: string[]): Promise<void> {
 		try {
-			logger.info({ vectorId }, "Deleting vector");
+			logger.info({ vectorIds }, "Deleting vectors");
 
-			await this.vectorize.deleteByIds([vectorId]);
+			await this.vectorize.deleteByIds(vectorIds);
 
-			logger.info({ vectorId }, "Vector deleted successfully");
+			logger.info({ vectorIds }, "Vectors deleted successfully");
 		} catch (error) {
-			logger.error({ error, vectorId }, "Error deleting vector");
-			throw new VectorizeError("Failed to delete vector", error as Error);
+			logger.error({ error, vectorIds }, "Error deleting vectors");
+			throw new VectorizeError("Failed to delete vectors", error as Error);
 		}
 	}
 
-	/**
-	 * Get vector metadata from database using Prisma
-	 */
-	async getVectorMetadata(vectorId: string): Promise<VectorMetadata | null> {
+	async clearAllVectors(): Promise<void> {
 		try {
-			const embedding = await this.prisma.vector_embeddings.findUnique({
-				where: {
-					vector_id: vectorId,
-				},
+			logger.info("Clearing all vector embeddings from Vectorize");
+
+			// Get all vector IDs from database instead of querying empty vector
+			const allEmbeddings = await this.prisma.vector_embeddings.findMany({
 				select: {
-					entity_type: true,
-					entity_id: true,
-					metadata: true,
-					created_at: true,
+					vector_id: true,
 				},
 			});
 
-			if (!embedding) {
-				return null;
+			const vectorIds = allEmbeddings.map((emb) => emb.vector_id);
+
+			if (vectorIds.length === 0) {
+				logger.info("No vectors found to delete");
+				return;
 			}
 
-			const metadata =
-				typeof embedding.metadata === "string"
-					? JSON.parse(embedding.metadata)
-					: embedding.metadata;
+			logger.info(
+				{ count: vectorIds.length },
+				"Deleting vectors from Vectorize",
+			);
 
-			return {
-				entityType: embedding.entity_type as VectorMetadata["entityType"],
-				entityId: Number(embedding.entity_id),
-				name: metadata.name,
-				description: metadata.description,
-				createdAt: embedding.created_at.toISOString(),
-			};
+			await this.deleteVectors(vectorIds);
+
+			logger.info(
+				{ deletedCount: vectorIds.length },
+				"All vector embeddings cleared",
+			);
 		} catch (error) {
-			logger.error({ error, vectorId }, "Error getting vector metadata");
-			throw new VectorizeError("Failed to get vector metadata", error as Error);
+			logger.error(
+				{ error },
+				"Error clearing all vector embeddings from Vectorize",
+			);
+			throw new VectorizeError(
+				"Failed to clear all vector embeddings from Vectorize",
+				error as Error,
+			);
 		}
 	}
 
-	/**
-	 * Batch upsert vectors
-	 */
-	async batchUpsertVectors(
-		vectors: Array<{
-			vectorId: string;
-			embedding: number[];
-			metadata: VectorMetadata;
-		}>,
-	): Promise<{ success: number; failed: number }> {
+	async clearAllVectorEmbeddings(): Promise<void> {
 		try {
-			logger.info({ count: vectors.length }, "Batch upserting vectors");
-
-			const vectorizeVectors: VectorizeVector[] = vectors.map((v) => ({
-				id: v.vectorId,
-				values: v.embedding,
-				metadata: v.metadata as Record<string, string | number | boolean>,
-			}));
-
-			await this.vectorize.upsert(vectorizeVectors);
-
-			logger.info(
-				{ success: vectors.length },
-				"Batch upsert completed successfully",
-			);
-
-			return { success: vectors.length, failed: 0 };
+			await this.prisma.vector_embeddings.deleteMany({});
 		} catch (error) {
-			logger.error({ error }, "Error batch upserting vectors");
+			logger.error(
+				{ error },
+				"Error clearing all vector embeddings from database",
+			);
 			throw new VectorizeError(
-				"Failed to batch upsert vectors",
+				"Failed to clear all vector embeddings from database",
 				error as Error,
 			);
 		}

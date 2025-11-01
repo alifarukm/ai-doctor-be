@@ -12,6 +12,18 @@ export class SearchService {
 	) {}
 
 	/**
+	 * Calculate dynamic threshold based on symptom count
+	 * Fewer symptoms = higher threshold (more selective)
+	 * More symptoms = lower threshold (more inclusive)
+	 */
+	private calculateDynamicThreshold(symptomCount: number): number {
+		if (symptomCount <= 1) return 0.65;
+		if (symptomCount <= 2) return 0.6;
+		if (symptomCount <= 3) return 0.55;
+		return 0.5;
+	}
+
+	/**
 	 * Hybrid search: combine vector similarity with graph traversal
 	 */
 	async hybridSearch(
@@ -34,11 +46,21 @@ export class SearchService {
 			const queryEmbedding =
 				await this.embeddingsService.generateEmbeddingForText(queryText);
 
+			// Calculate dynamic threshold based on symptom count
+			const threshold = this.calculateDynamicThreshold(
+				validatedSymptoms.length,
+			);
+
+			logger.info(
+				{ threshold, symptomCount: validatedSymptoms.length },
+				"Using dynamic threshold",
+			);
+
 			// Search for similar diseases and symptoms in vector store
 			const vectorResults = await this.vectorStoreService.searchVectors(
 				queryEmbedding,
 				Math.min(limit * 3, 30), // Get more candidates for graph filtering
-				0.4, // Lower threshold to get more candidates
+				threshold, // Dynamic threshold based on symptom count
 			);
 
 			logger.info({ found: vectorResults.length }, "Vector search complete");
@@ -83,6 +105,13 @@ export class SearchService {
 					graphNode,
 				);
 
+				// Evaluate negative diagnostic criteria
+				const negativePenalty =
+					await this.graphService.evaluateNegativeCriteria(
+						graphNode.diseaseId,
+						validatedSymptoms,
+					);
+
 				// Get vector score if available
 				const vectorResult = vectorResults.find(
 					(r) =>
@@ -92,8 +121,12 @@ export class SearchService {
 
 				const vectorScore = vectorResult?.score || 0;
 
-				// Combined score: 30% vector, 70% graph
-				const combinedScore = this.scoreSearchResults(vectorScore, graphScore);
+				// Combined score: 30% vector, 70% graph, minus negative criteria penalty
+				const rawCombinedScore = this.scoreSearchResults(
+					vectorScore,
+					graphScore,
+				);
+				const combinedScore = Math.max(rawCombinedScore - negativePenalty, 0);
 
 				candidates.push({
 					diseaseId: graphNode.diseaseId,
@@ -101,6 +134,7 @@ export class SearchService {
 					graphScore,
 					combinedScore,
 					graphNode,
+					negativePenalty, // For debugging/transparency
 				});
 			}
 

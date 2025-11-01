@@ -124,5 +124,78 @@ src/
 ├── services/           # Business logic
 ├── routers/            # API endpoints
 ├── middleware/         # Middleware
-└── index.ts           # Main entry point
+├── libs/               # Third-party libs example (prisma orm)
+└── index.ts            # Main entry point
 ```
+
+---
+
+## 🤖 For AI Assistants (Claude Code)
+
+### Critical Rules
+
+**Package Manager:**
+- ✅ **ALWAYS use `bun`** for all commands
+- ❌ **NEVER use npm/yarn/pnpm**
+- Examples:
+  - `bun run dev` (not `npm run dev`)
+  - `bun add package` (not `npm install package`)
+  - `bun run format` (not `npm run format`)
+
+**Runtime & Infrastructure:**
+- Platform: Cloudflare Workers (edge runtime)
+- Database: D1 (remote, accessed via wrangler)
+- Local dev: Uses `wrangler dev` with remote D1 binding
+- No local database - always connects to remote
+
+**Code Style:**
+- Formatter: Biome (not Prettier/ESLint)
+- No emojis in code unless explicitly requested
+- Turkish comments OK for medical domain
+- TypeScript strict mode
+
+### Architecture Overview
+
+**Embeddings Strategy (Rich Context):**
+- Diseases: Name + Category + Description + Top 5 Symptoms + Top 3 Diagnosis Criteria
+- Symptoms: Name + Description + Related Diseases (Primary/Secondary)
+- Model: `@cf/baai/bge-base-en-v1.5` (768 dimensions)
+
+**Search & Scoring:**
+- Hybrid Search: 30% Vector + 70% Graph
+- Dynamic Thresholds: 0.5-0.65 (based on symptom count)
+- Multi-symptom Boosting: +15% for 3+ symptoms, +10% for 70%+ match ratio
+- Negative Criteria: Differential diagnosis penalties (up to -50%)
+
+**Key Files:**
+- `src/services/embeddings.ts` - Rich context building
+- `src/services/search.ts` - Hybrid search + dynamic thresholds
+- `src/services/graph.ts` - Scoring + boosting + negative criteria
+- `src/libs/prisma/schema.prisma` - Database schema
+
+### Development Commands
+
+```bash
+# Start local dev (connects to remote D1)
+bun run dev
+
+# Deploy to Cloudflare
+bun run deploy
+
+# Format code
+bun run format
+
+# Database sync
+bun run db-sync:local    # Sync with local .env.local
+bun run db-sync:remote   # Sync with remote .env.remote
+
+# Generate embeddings (after data changes)
+curl -X POST http://localhost:8787/api/embeddings/generate
+```
+
+### Recent Improvements (2025-10)
+
+1. **Rich Context Embeddings** - Enhanced semantic search quality
+2. **Dynamic Thresholds** - Adaptive based on symptom count
+3. **Multi-symptom Boosting** - Rewards comprehensive matches
+4. **Negative Criteria** - Filters out conflicting diagnoses

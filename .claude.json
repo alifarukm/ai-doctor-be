@@ -1,0 +1,12 @@
+{
+	"$schema": "https://claude.ai/schema/claude.json",
+	"mcpServers": {
+		"context7": {
+			"type": "http",
+			"url": "https://mcp.context7.com/mcp",
+			"headers": {
+				"CONTEXT7_API_KEY": "ctx7sk-2f11dc37-e46d-45b3-a92c-79f30e92c87e"
+			}
+		}
+	}
+}

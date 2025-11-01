@@ -1,20 +1,15 @@
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { z } from "zod";
 import prismaClients from "@/libs/prisma/index";
-import { EmbeddingsService, VectorStoreService } from "@/services";
+import {
+	DiseasesService,
+	EmbeddingsService,
+	SymptomsService,
+	VectorStoreService,
+} from "@/services";
 import type { CloudflareBindings } from "@/types";
 import { logger } from "@/utils/logger";
 
 export const embeddingsRouter = new Hono<{ Bindings: CloudflareBindings }>();
-
-/**
- * Batch embedding generation schema
- */
-const BatchEmbeddingRequestSchema = z.object({
-	entityType: z.enum(["disease", "symptom", "treatment"]),
-	entityIds: z.array(z.number()).optional(),
-});
 
 /**
  * POST /generate - Generate embeddings for all entities
@@ -75,7 +70,7 @@ embeddingsRouter.post("/generate", async (c) => {
 							| "symptom"
 							| "treatment"
 							| "query",
-						entityId: row.entity_id as number,
+						entityId: row.entity_id as string,
 						name: metadata.name,
 						description: metadata.description,
 						createdAt: new Date().toISOString(),
@@ -126,73 +121,48 @@ embeddingsRouter.post("/generate", async (c) => {
 	}
 });
 
-/**
- * POST /generate-batch - Generate embeddings for specific entities
- */
-embeddingsRouter.post(
-	"/generate-batch",
-	zValidator("json", BatchEmbeddingRequestSchema),
-	async (c) => {
-		try {
-			const request = c.req.valid("json");
-			const env = c.env;
+embeddingsRouter.post("/clear", async (c) => {
+	try {
+		const env = c.env;
 
-			logger.info(
-				{ entityType: request.entityType },
-				"Batch generation for entity type",
-			);
+		logger.info("Batch embedding generation requested");
 
-			// Initialize Prisma client
-			const prisma = await prismaClients.fetch(env.DB);
+		// Initialize Prisma client
+		const prisma = await prismaClients.fetch(env.DB);
 
-			const embeddingsService = new EmbeddingsService(
-				env.AI,
-				prisma,
-				env.EMBEDDING_MODEL,
-			);
+		const symptomsService = new SymptomsService(prisma);
+		const diseasesService = new DiseasesService(prisma);
+		const vectorStoreService = new VectorStoreService(env.VECTORIZE, prisma);
 
-			let result: { generated: number; failed: number };
+		await vectorStoreService.clearAllVectors();
 
-			if (request.entityType === "disease") {
-				result = await embeddingsService.generateEmbeddingsForDiseases();
-			} else if (request.entityType === "symptom") {
-				result = await embeddingsService.generateEmbeddingsForSymptoms();
-			} else {
-				return c.json(
-					{
-						success: false,
-						error: {
-							code: "INVALID_ENTITY_TYPE",
-							message: "Only disease and symptom entity types are supported",
-						},
-					},
-					400,
-				);
-			}
+		await Promise.all([
+			symptomsService.clearVectorsFromSymptoms(),
+			diseasesService.clearVectorsFromDiseases(),
+			vectorStoreService.clearAllVectorEmbeddings(),
+		]);
 
-			return c.json(
-				{
-					success: true,
-					data: result,
-					timestamp: new Date().toISOString(),
+		return c.json(
+			{
+				success: true,
+				data: {},
+				timestamp: new Date().toISOString(),
+			},
+			200,
+		);
+	} catch (error) {
+		logger.error({ error }, "Error generating embeddings");
+
+		return c.json(
+			{
+				success: false,
+				error: {
+					code: "EMBEDDING_CLEAR_ERROR",
+					message: (error as Error).message || "Failed to generate embeddings",
 				},
-				200,
-			);
-		} catch (error) {
-			logger.error({ error }, "Error in batch generation");
-
-			return c.json(
-				{
-					success: false,
-					error: {
-						code: "BATCH_GENERATION_ERROR",
-						message:
-							(error as Error).message || "Failed to generate batch embeddings",
-					},
-					timestamp: new Date().toISOString(),
-				},
-				500,
-			);
-		}
-	},
-);
+				timestamp: new Date().toISOString(),
+			},
+			500,
+		);
+	}
+});
